@@ -1,0 +1,44 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/web/**", "packages/**"]
+  pull_request:
+    paths: ["apps/web/**", "packages/**"]
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Typecheck · Lint · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter @stellarflow/web typecheck
+
+      - name: Lint
+        run: pnpm --filter @stellarflow/web lint
+
+      - name: Test
+        run: pnpm --filter @stellarflow/web test
+
+      - name: Build
+        run: pnpm --filter @stellarflow/web build

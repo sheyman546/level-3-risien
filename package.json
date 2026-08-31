@@ -1,0 +1,52 @@
+{
+  "name": "stellarflow-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StellarFlow Hub — a production-oriented Stellar/Soroban smart payment & escrow platform",
+  "license": "MIT",
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck && tsc -p tsconfig.json --noEmit",
+    "typecheck:scripts": "tsc -p tsconfig.json --noEmit",
+    "test": "turbo run test",
+    "test:web": "pnpm --filter @stellarflow/web test",
+    "test:sdk": "pnpm --filter @stellarflow/sdk test",
+    "test:indexer": "pnpm --filter @stellarflow/event-indexer test",
+    "contracts:test": "cd contracts && cargo test --workspace",
+    "contracts:build": "cd contracts && stellar contract build",
+    "contracts:fmt": "cd contracts && cargo fmt --all",
+    "contracts:clippy": "cd contracts && cargo clippy --workspace --all-targets -- -D warnings",
+    "dev:web": "pnpm --filter @stellarflow/web dev",
+    "dev:indexer": "pnpm --filter @stellarflow/event-indexer dev",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "localnet:up": "docker compose --profile localnet up -d",
+    "setup": "tsx scripts/setup/index.ts",
+    "deploy:local": "tsx scripts/deploy/index.ts --network local",
+    "deploy:testnet": "tsx scripts/deploy/index.ts --network testnet",
+    "deploy:mainnet": "tsx scripts/deploy/index.ts --network mainnet",
+    "seed": "tsx scripts/seed/index.ts"
+  },
+  "devDependencies": {
+    "@stellar/stellar-sdk": "^12.3.0",
+    "@stellarflow/config": "workspace:*",
+    "@stellarflow/sdk": "workspace:*",
+    "@stellarflow/types": "workspace:*",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

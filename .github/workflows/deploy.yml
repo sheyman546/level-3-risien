@@ -1,0 +1,110 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [testnet, mainnet]
+        default: testnet
+      deploy_web:
+        description: "Deploy the web app too"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: ["contracts/**"]
+
+# Secrets required (repository / environment):
+#   STELLARFLOW_SECRET_KEY  funded deployer secret key
+#   STELLARFLOW_RPC_URL     RPC endpoint (optional; defaults per network)
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID  (web deploy)
+
+jobs:
+  contracts:
+    name: Deploy contracts (${{ github.event.inputs.environment || 'testnet' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ github.event.inputs.environment || 'testnet' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+
+      - name: Test contracts
+        working-directory: contracts
+        run: cargo test --workspace
+
+      - name: Install stellar-cli
+        run: cargo install stellar-cli --locked
+
+      - name: Deploy contracts
+        run: pnpm tsx contracts/scripts/deploy.ts --network ${{ github.event.inputs.environment || 'testnet' }}
+        env:
+          STELLARFLOW_SECRET_KEY: ${{ secrets.STELLARFLOW_SECRET_KEY }}
+          STELLARFLOW_RPC_URL: ${{ secrets.STELLARFLOW_RPC_URL }}
+
+      - name: Verify deployment
+        run: |
+          set -a
+          source .env.contracts
+          set +a
+          pnpm tsx contracts/scripts/verify.ts --network ${{ github.event.inputs.environment || 'testnet' }}
+        env:
+          STELLARFLOW_SECRET_KEY: ${{ secrets.STELLARFLOW_SECRET_KEY }}
+
+  web:
+    name: Deploy web (Vercel)
+    needs: contracts
+    if: ${{ github.event.inputs.deploy_web == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: vercel
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter @stellarflow/web build
+        env:
+          NEXT_PUBLIC_STELLARFLOW_NETWORK: ${{ github.event.inputs.environment || 'testnet' }}
+          NEXT_PUBLIC_STELLARFLOW_PAYMENT_CONTRACT: ${{ secrets.NEXT_PUBLIC_STELLARFLOW_PAYMENT_CONTRACT }}
+          NEXT_PUBLIC_STELLARFLOW_ESCROW_CONTRACT: ${{ secrets.NEXT_PUBLIC_STELLARFLOW_ESCROW_CONTRACT }}
+          NEXT_PUBLIC_STELLARFLOW_REGISTRY_CONTRACT: ${{ secrets.NEXT_PUBLIC_STELLARFLOW_REGISTRY_CONTRACT }}
+
+      - name: Deploy to Vercel
+        working-directory: apps/web
+        run: npx vercel --prod --yes --token $VERCEL_TOKEN
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

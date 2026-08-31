@@ -1,0 +1,37 @@
+services:
+  # Postgres used by the event indexer
+  postgres:
+    image: postgres:16-alpine
+    container_name: stellarflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stellarflow
+      POSTGRES_PASSWORD: stellarflow
+      POSTGRES_DB: stellarflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stellarflow -d stellarflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Local Stellar network (standalone + Soroban RPC on :8000).
+  # Enable with: docker compose --profile localnet up -d
+  stellar-quickstart:
+    image: stellar/quickstart:soroban-dev
+    container_name: stellarflow-localnet
+    profiles: ["localnet"]
+    command: ["--standalone", "--enable-soroban-rpc", "--enable-core-rpc"]
+    ports:
+      - "8000:8000"   # Soroban RPC
+      - "11626:11626" # Stellar Core HTTP
+      - "11625:11625" # Stellar Core P2P
+    volumes:
+      - stellar-core-data:/opt/stellar
+
+volumes:
+  postgres-data:
+  stellar-core-data:

@@ -1,0 +1,55 @@
+name: Contracts
+
+on:
+  push:
+    branches: [main]
+    paths: ["contracts/**"]
+  pull_request:
+    paths: ["contracts/**"]
+
+concurrency:
+  group: contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Format · Clippy · Test · WASM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+          targets: wasm32v1-none
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+
+      - name: Format
+        working-directory: contracts
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        working-directory: contracts
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        working-directory: contracts
+        run: cargo test --workspace
+
+      - name: Install stellar-cli
+        run: cargo install stellar-cli --locked
+
+      - name: Build WASM
+        working-directory: contracts
+        run: stellar contract build
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-wasm
+          path: contracts/target/wasm32v1-none/release/*.wasm
+          if-no-files-found: error
