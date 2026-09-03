@@ -106,6 +106,8 @@ invokes it cross-contract (`try_` variants with error mapping).
 - `docs/architecture.md`, `docs/contracts.md`, `docs/frontend.md`,
   `docs/deployment.md`, `docs/testing.md`, `docs/demo.md`
 - A full walkthrough demo in `docs/demo.md`
+- A 10-part production dApp curriculum (EVM/Solidity, with Soroban
+  mappings) in [`docs/curriculum/`](docs/curriculum/README.md)
 
 ---
 
